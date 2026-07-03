@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ironguard_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-your_password_here}
+      POSTGRES_DB: ${POSTGRES_DB:-ironguard_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ironguard_net
+
+  # Eclipse Mosquitto MQTT Broker
+  mqtt:
+    image: eclipse-mosquitto:2.0
+    container_name: ironguard_mqtt
+    restart: always
+    ports:
+      - "1883:1883"
+      - "9001:9001" # WebSockets over MQTT
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - ironguard_net
+
+networks:
+  ironguard_net:
+    driver: bridge
+
+volumes:
+  postgres_data:

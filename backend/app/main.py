@@ -1,29 +1,39 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
-from app.api.routes import api_router
 from app.core.config import settings
-from app.core.logger import logger
+from app.mqtt.subscriber import create_mqtt_client, MQTT_BROKER, MQTT_PORT, latest_readings
 
-logger.info("Starting IRON GUARD AI")
+mqtt_client = create_mqtt_client()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    mqtt_client.loop_start()
+    yield
+    mqtt_client.loop_stop()
+    mqtt_client.disconnect()
+
 
 app = FastAPI(
-    title=settings.APP_NAME,
-    version=settings.APP_VERSION,
-    description="Industrial Safety Intelligence Platform"
-)
-
-app.include_router(
-    api_router,
-    prefix=settings.API_PREFIX
+    title=settings.PROJECT_NAME,
+    openapi_url=f"{settings.API_V1_STR}/openapi.json",
+    lifespan=lifespan
 )
 
 
-@app.get("/")
-def root():
-    logger.info("Root endpoint accessed")
-
+@app.get("/api/v1/health")
+def health_check():
     return {
-        "application": settings.APP_NAME,
-        "version": settings.APP_VERSION,
-        "status": "Running"
+        "status": "healthy",
+        "project": settings.PROJECT_NAME,
+        "environment": settings.ENVIRONMENT
     }
+
+
+@app.get("/api/v1/mqtt/latest")
+def get_latest_mqtt():
+    
+    return latest_readings
